@@ -136,25 +136,33 @@ with tab1:
         st.image(image, caption='Yüklenen Fotoğraf', use_container_width=True)
         tahminler = fotograf_analiz(image)
         
-         # --- KESİN KARAR VE BELİRSİZLİK YÖNETİMİ ---
+        # --- KESİN KARAR VE BELİRSİZLİK YÖNETİMİ ---
+        tahmin_edilen_sinif = tahminler[0][0]
         en_yuksek_eminlik = tahminler[0][1]
-        
+                
         st.write("🧠 **Yapay Zeka'nın Analizi:**")
         
-        if en_yuksek_eminlik < 0.50:
-            # Eminlik %50'den düşükse kesinlikle reddet ve rota oluşturma
-            st.error("⚠️ Alakasız Fotoğraf! Lütfen sisteme tanımlı İstanbul'a ait tarihi bir mekan fotoğrafı yükleyin.")
-            st.info(f"🔍 Arka plan analizi: Sistem bu görseli en çok **{tahminler[0][0]}** mekanına benzetti ancak eminlik oranı yetersiz (%{en_yuksek_eminlik*100:.1f}).")
-            
+        # Sınıfa Özel Eşikleme Mantığı (Yerebatan ve Rumeli için %85, diğerleri için %70)
+        ozel_esikler = {
+            "Yerebatan Sarnıcı": 0.85,
+            "Rumeli Hisarı": 0.85
+        }
+        gecerli_esik = ozel_esikler.get(tahmin_edilen_sinif, 0.70)
+                
+        if en_yuksek_eminlik < gecerli_esik:
+            # Eminlik dinamik eşikten düşükse kesinlikle reddet ve rota oluşturma
+            st.error(f"⚠️ Alakasız Fotoğraf veya Düşük Eminlik! Lütfen tarihi mekanın net bir fotoğrafını yükleyin.")
+            st.info(f"🔍 Arka plan analizi: Sistem bu görseli **{tahmin_edilen_sinif}** olarak algıladı ancak eminlik oranı bu mekan için yetersiz (Gereken: %{gecerli_esik*100}, Hesaplanan: %{en_yuksek_eminlik*100:.1f}).")
+                    
             # BURASI ÇOK ÖNEMLİ: None yaparak alttaki rota çıkarma kodlarının çalışmasını engelliyoruz
             mekan_secimi = None 
         else:
-            # Eminlik %50'nin üzerindeyse tahmini gururla kabul et
-            st.success(f"🥇 1. Tahmin: **{tahminler[0][0]}** (Eminlik: %{en_yuksek_eminlik*100:.1f})")
+            # Eminlik eşiğin üzerindeyse tahmini gururla kabul et
+            st.success(f"🥇 1. Tahmin: **{tahmin_edilen_sinif}** (Eminlik: %{en_yuksek_eminlik*100:.1f})")
             if tahminler[1][1] > 0.10: 
                 st.info(f"🥈 2. Tahmin: **{tahminler[1][0]}** (Eminlik: %{tahminler[1][1]*100:.1f})")
-            
-            mekan_secimi = tahminler[0][0]
+                    
+            mekan_secimi = tahmin_edilen_sinif
 
     if mekan_secimi:
         turistik, sosyal = onerileri_getir(mekan_secimi, df)
